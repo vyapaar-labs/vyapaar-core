@@ -151,7 +151,7 @@ impl Price {
     /// are validated in both debug and release builds.
     pub const fn new(d: Decimal) -> Self {
         debug_assert!(
-            !(d.is_sign_negative() && !d.is_zero()),
+            !d.is_sign_negative() || d.is_zero(),
             "Price cannot be negative"
         );
         Self(d)
@@ -277,7 +277,7 @@ impl Quantity {
     /// [`Quantity::try_new`] for the validated path.
     pub const fn new(d: Decimal) -> Self {
         debug_assert!(
-            !(d.is_sign_negative() && !d.is_zero()),
+            !d.is_sign_negative() || d.is_zero(),
             "Quantity cannot be negative"
         );
         Self(d)

@@ -55,8 +55,8 @@ pub use portfolio::{
 };
 pub use ports::{
     BarReader, BarRequest, ConnectorState, DatedInstrument, DepthReader, ExecutionGateway,
-    InstrumentMaster, MarketDataConnector, PortError, PortResult, PositionSizer, QuoteReader,
-    SubscriptionParams, TickReader, TickRequest,
+    InstrumentMaster, MarketDataConnector, MarketEvent, PortError, PortResult, PositionSizer,
+    QuoteReader, SubscriptionParams, TickReader, TickRequest,
 };
 pub use screener::{
     FilterOp, MetricDefinition, MetricKeySpec, MetricPeriod, MetricRef, ScreenerFilterGroup,

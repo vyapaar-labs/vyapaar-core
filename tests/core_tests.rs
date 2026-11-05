@@ -500,6 +500,7 @@ fn test_fill_report_fee_defaults_to_zero() {
         Quantity::from_u64(10),
         "momentum-alpha-v1",
         Utc::now(),
+        "default",
     );
     assert_eq!(fill.fee, Money::zero_inr());
     assert!(fill.fee_breakdown.is_none());
@@ -530,6 +531,7 @@ fn test_fee_breakdown_total_and_with_fee_breakdown() {
         Quantity::from_u64(5),
         "momentum-alpha-v1",
         Utc::now(),
+        "default",
     )
     .with_fee_breakdown(breakdown);
 
@@ -548,6 +550,7 @@ fn test_fee_breakdown_total_and_with_fee_breakdown() {
         Quantity::from_u64(1),
         "momentum-alpha-v1",
         Utc::now(),
+        "default",
     )
     .with_fee(Money::inr(Decimal::from_str("5.00").unwrap()));
     assert_eq!(flat.fee, Money::inr(Decimal::from_str("5.00").unwrap()));
@@ -623,6 +626,7 @@ fn test_order_wire_trace_context_roundtrip() {
         Quantity::from_u64(10),
         "algo-1",
         Utc::now(),
+        "default",
     )
     .with_trace_context(trace_ctx);
     let json_fill = serde_json::to_string(&fill).unwrap();

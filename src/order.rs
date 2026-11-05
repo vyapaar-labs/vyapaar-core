@@ -351,6 +351,9 @@ pub struct FillReport {
     /// Optional client ID
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
+    /// Optional account ID (defaults to "default" if not provided)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
     /// Total transaction cost charged on this fill (brokerage, statutory
     /// levies, and exchange charges combined), in the fill's currency.
     ///
@@ -384,6 +387,7 @@ impl FillReport {
         quantity: Quantity,
         algo_id: impl Into<String>,
         timestamp: DateTime<Utc>,
+        account_id: impl Into<String>,
     ) -> Self {
         Self {
             fill_id: fill_id.into(),
@@ -397,6 +401,7 @@ impl FillReport {
             timestamp,
             correlation_id: Some(client_order_id),
             client_id: None,
+            account_id: Some(account_id.into()),
             fee: Money::zero_inr(),
             fee_breakdown: None,
             trace_context: None,
@@ -413,6 +418,11 @@ impl FillReport {
         self.client_id.as_deref().unwrap_or("default")
     }
 
+    /// Returns account ID or "default".
+    pub fn account_id_str(&self) -> &str {
+        self.account_id.as_deref().unwrap_or("default")
+    }
+
     /// Attaches a total fee with no itemized breakdown.
     pub fn with_fee(mut self, fee: Money) -> Self {
         self.fee = fee;
@@ -423,6 +433,12 @@ impl FillReport {
     pub fn with_fee_breakdown(mut self, breakdown: FeeBreakdown) -> Self {
         self.fee = breakdown.total();
         self.fee_breakdown = Some(breakdown);
+        self
+    }
+
+    /// Attach an account ID for lot matching.
+    pub fn with_account_id(mut self, account_id: impl Into<String>) -> Self {
+        self.account_id = Some(account_id.into());
         self
     }
 
