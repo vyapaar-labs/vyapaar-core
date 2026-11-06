@@ -23,8 +23,8 @@
 * **Ubiquitous Language**: `InstrumentId`, `Price`, `Quantity`, `Money`, `Currency`, `OrderSide`, `OrderType`, `TimeInForce`, `Decision`, `ClientOrderId`, `AlgoId`, `AccountId`, `TransactionId`.
 * **Zero Floats Policy**: Floating-point numbers (`f32`/`f64`) are strictly forbidden. Always use `rust_decimal::Decimal`.
 * **TDD & Parallel Test Directory Rule (MANDATORY)**:
-  - All tests must live in `tests/` parallel to `src/`.
-  - **STRICTLY FORBIDDEN**: In-file `#[test]` or `mod tests` inside `src/`.
+  - All tests must live in `tests/` parallel to `src/`, or in a `src/tests/` module directory.
+  - **STRICTLY FORBIDDEN**: In-file `#[test]` or `mod tests` inside production `src/` files.
   - Red-Green-Refactor cycle on every PR.
   - Use `proptest` for invariant validation and price/quantity quantization.
 

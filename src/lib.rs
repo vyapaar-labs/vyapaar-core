@@ -29,6 +29,7 @@ pub mod market;
 pub mod order;
 pub mod portfolio;
 pub mod ports;
+pub mod quant;
 pub mod screener;
 pub mod signal;
 pub mod sizing;
@@ -57,6 +58,10 @@ pub use ports::{
     BarReader, BarRequest, ConnectorState, DatedInstrument, DepthReader, ExecutionGateway,
     InstrumentMaster, MarketDataConnector, MarketEvent, PortError, PortResult, PositionSizer,
     QuoteReader, SubscriptionParams, TickReader, TickRequest,
+};
+pub use quant::{
+    QuantError, QuantSeries, beta, correlation, ewma_volatility, log_returns, max_drawdown,
+    realized_volatility, rolling_mean, rolling_stdev, sharpe_ratio, simple_returns,
 };
 pub use screener::{
     FilterOp, MetricDefinition, MetricKeySpec, MetricPeriod, MetricRef, ScreenerFilterGroup,
