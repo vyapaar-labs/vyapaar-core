@@ -60,8 +60,9 @@ pub use ports::{
     QuoteReader, SubscriptionParams, TickReader, TickRequest,
 };
 pub use quant::{
-    QuantError, QuantSeries, beta, correlation, ewma_volatility, log_returns, max_drawdown,
-    realized_volatility, rolling_mean, rolling_stdev, sharpe_ratio, simple_returns,
+    QuantError, QuantSeries, beta, correlation, ewma_volatility, historical_cvar, historical_var,
+    log_returns, max_drawdown, realized_volatility, rolling_mean, rolling_stdev, sharpe_ratio,
+    simple_returns, tracking_error,
 };
 pub use screener::{
     FilterOp, MetricDefinition, MetricKeySpec, MetricPeriod, MetricRef, ScreenerFilterGroup,

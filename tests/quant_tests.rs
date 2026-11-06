@@ -341,3 +341,80 @@ fn quant_series_derefs_and_collects() {
     assert_eq!(series[2], d("3")); // Deref to slice
     assert_eq!(series.into_inner(), vec![d("1"), d("2"), d("3")]);
 }
+
+// ---------------------------------------------------------------------------
+// historical_var / historical_cvar
+// ---------------------------------------------------------------------------
+
+#[test]
+fn historical_var_and_cvar_golden() {
+    // Sorted ascending: [-0.08, -0.05, -0.02, -0.01, 0.01, 0.02, 0.03, 0.04].
+    let returns: QuantSeries = vec![
+        d("-0.05"),
+        d("-0.02"),
+        d("0.01"),
+        d("0.03"),
+        d("-0.08"),
+        d("0.04"),
+        d("-0.01"),
+        d("0.02"),
+    ]
+    .into();
+    // rank = floor((1 - 0.75) * 8) = 2 => sorted[2] = -0.02 => var = 0.02.
+    assert_close_dp(historical_var(&returns, d("0.75")).unwrap(), d("0.02"), 4);
+    // mean(sorted[0..=2]) = (-0.08 - 0.05 - 0.02) / 3 = -0.05 => cvar = 0.05.
+    assert_close_dp(historical_cvar(&returns, d("0.75")).unwrap(), d("0.05"), 4);
+}
+
+#[test]
+fn historical_var_and_cvar_reject_out_of_range_confidence() {
+    let returns: QuantSeries = vec![d("-0.05"), d("-0.02"), d("0.01"), d("0.03")].into();
+    for bad in [d("0"), d("1"), d("1.5")] {
+        assert!(matches!(
+            historical_var(&returns, bad).unwrap_err(),
+            QuantError::InvalidArgument(_)
+        ));
+        assert!(matches!(
+            historical_cvar(&returns, bad).unwrap_err(),
+            QuantError::InvalidArgument(_)
+        ));
+    }
+}
+
+#[test]
+fn historical_var_and_cvar_require_two_observations() {
+    let returns: QuantSeries = vec![d("-0.05")].into();
+    assert_eq!(
+        historical_var(&returns, d("0.95")).unwrap_err(),
+        QuantError::InsufficientData { needed: 2, got: 1 }
+    );
+    assert_eq!(
+        historical_cvar(&returns, d("0.95")).unwrap_err(),
+        QuantError::InsufficientData { needed: 2, got: 1 }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// tracking_error
+// ---------------------------------------------------------------------------
+
+#[test]
+fn tracking_error_matches_realized_volatility_of_diff() {
+    let asset: QuantSeries = vec![d("0.02"), d("-0.01"), d("0.03")].into();
+    let benchmark: QuantSeries = vec![d("0.01"), d("0.00"), d("0.02")].into();
+    let diff: QuantSeries = vec![d("0.01"), d("-0.01"), d("0.01")].into();
+    assert_eq!(
+        tracking_error(&asset, &benchmark, Decimal::ONE).unwrap(),
+        realized_volatility(&diff, Decimal::ONE).unwrap()
+    );
+}
+
+#[test]
+fn tracking_error_rejects_mismatched_lengths() {
+    let asset: QuantSeries = vec![d("0.02"), d("-0.01")].into();
+    let benchmark: QuantSeries = vec![d("0.01")].into();
+    assert!(matches!(
+        tracking_error(&asset, &benchmark, Decimal::ONE).unwrap_err(),
+        QuantError::InvalidArgument(_)
+    ));
+}

@@ -29,6 +29,7 @@
 use core::ops::Deref;
 use rust_decimal::Decimal;
 use rust_decimal::MathematicalOps;
+use rust_decimal::prelude::ToPrimitive;
 use thiserror::Error;
 
 use crate::types::{Money, Price};
@@ -439,4 +440,75 @@ pub fn beta(
         return Err(QuantError::DivisionByZero);
     }
     Ok(cov / ss_b)
+}
+
+/// Historical (empirical) Value at Risk: the loss at the given confidence
+/// level, as a positive fraction (e.g. `0.05` for a 5% loss at a 95%
+/// confidence level). Uses the nearest-rank method on the sorted returns (no
+/// interpolation, so the result is always Decimal-exact): sorts `returns`
+/// ascending, then reads the entry at rank `floor((1 - confidence) * n)`
+/// (clamped to `n - 1`). `confidence` must lie in the open interval `(0, 1)`.
+/// Requires at least two observations.
+pub fn historical_var(returns: &QuantSeries, confidence: Decimal) -> Result<Decimal, QuantError> {
+    let n = returns.len();
+    if n < 2 {
+        return Err(QuantError::InsufficientData { needed: 2, got: n });
+    }
+    if !(confidence > Decimal::ZERO && confidence < Decimal::ONE) {
+        return Err(QuantError::InvalidArgument(
+            "confidence must lie in the open interval (0, 1)",
+        ));
+    }
+    let mut sorted = returns.as_slice().to_vec();
+    sorted.sort();
+    let rank = ((Decimal::ONE - confidence) * Decimal::from(n as u64)).floor();
+    let index = rank.to_u64().unwrap_or(0).min(n as u64 - 1) as usize;
+    Ok(-sorted[index])
+}
+
+/// Historical (empirical) Conditional VaR (Expected Shortfall): the mean
+/// loss among the worst `(1 - confidence)` fraction of returns, as a
+/// positive fraction. Shares [`historical_var`]'s rank computation and
+/// `confidence` domain; averages every sorted return from index `0` through
+/// that rank (inclusive), then negates the mean to express it as a positive
+/// loss. Requires at least two observations.
+pub fn historical_cvar(returns: &QuantSeries, confidence: Decimal) -> Result<Decimal, QuantError> {
+    let n = returns.len();
+    if n < 2 {
+        return Err(QuantError::InsufficientData { needed: 2, got: n });
+    }
+    if !(confidence > Decimal::ZERO && confidence < Decimal::ONE) {
+        return Err(QuantError::InvalidArgument(
+            "confidence must lie in the open interval (0, 1)",
+        ));
+    }
+    let mut sorted = returns.as_slice().to_vec();
+    sorted.sort();
+    let rank = ((Decimal::ONE - confidence) * Decimal::from(n as u64)).floor();
+    let index = rank.to_u64().unwrap_or(0).min(n as u64 - 1) as usize;
+    let tail = &sorted[0..=index];
+    let m = tail.iter().copied().sum::<Decimal>() / Decimal::from(tail.len() as u64);
+    Ok(-m)
+}
+
+/// Annualized tracking error: the realized volatility of the elementwise
+/// return difference `asset_returns[i] - benchmark_returns[i]`, scaled by
+/// the square root of `annualization_factor` (delegates to
+/// [`realized_volatility`] for that scaling). Requires both series to have
+/// equal length of at least two observations.
+pub fn tracking_error(
+    asset_returns: &QuantSeries,
+    benchmark_returns: &QuantSeries,
+    annualization_factor: Decimal,
+) -> Result<Decimal, QuantError> {
+    if asset_returns.len() != benchmark_returns.len() {
+        return Err(QuantError::InvalidArgument("series lengths must match"));
+    }
+    let diff: QuantSeries = asset_returns
+        .as_slice()
+        .iter()
+        .zip(benchmark_returns.as_slice())
+        .map(|(a, b)| *a - *b)
+        .collect();
+    realized_volatility(&diff, annualization_factor)
 }
