@@ -13,6 +13,9 @@
 - Zero-floats policy respected: all math uses `rust_decimal::Decimal` with the `maths` feature (pure `Decimal` `ln`/`sqrt`, no `f64` intermediates).
 - Zero-I/O domain purity respected: no network, filesystem, or clock queries.
 - Compiles to `wasm32-unknown-unknown` and native `x86_64`/`aarch64`.
+- `docs/migration-guide.md` decimated: file-by-file migration map moved to
+  `docs/design/code-migration-map.md`; verification commands moved to
+  `docs/roadmap/migration-verification.md`; original `migration-guide.md` removed.
 
 ## Immediate Next Step
 

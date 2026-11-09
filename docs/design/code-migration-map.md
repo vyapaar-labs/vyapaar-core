@@ -1,12 +1,11 @@
-# `vyapaar-core` — Subagent Migration & DDD Refactoring Guide
+# `vyapaar-core` — Historical Migration Map (honba-core → vyapaar-core)
 
 > **Tier**: Tier 0 (Execute First — Zero Internal Dependencies)
 > **Source**: `/home/pmallapp/Devel/Finance/honba-workspace/honba-core`
 > **Target**: `/home/pmallapp/Devel/Finance/vyapaar-labs/vyapaar-core`
+> **Status**: Migration complete.
 
----
-
-## 1. File-by-File Migration Map
+## File-by-File Migration Map
 
 | Source Path (`honba-core/`) | Target Path (`vyapaar-core/`) | Action & DDD Refactoring Required |
 | :--- | :--- | :--- |
@@ -31,14 +30,14 @@
 | `schema/**` | `schema/**` | Copy golden JSON vectors and schema compatibility snapshots; update any `"honba"` strings if present. |
 | `tests/*.rs` | `tests/*.rs` | Port `core_tests.rs`, `golden_test.rs`, `proptest_invariants.rs`, `schema_compatibility_test.rs`. Delete placeholder `tests/unit_tests.rs`. Replace `honba_core` with `vyapaar_core`. |
 
----
+## Strict Invariants Checklist
 
-## 2. Strict Invariants Checklist
 - [x] **Zero-I/O**: No `tokio`, `std::fs`, `std::net`, or `Utc::now()` in `src/` (except optional helper constructors if explicitly documented; prefer explicit `timestamp: DateTime<Utc>`).
 - [x] **Zero-Floats**: Zero `f32` or `f64` fields in any financial struct.
 - [x] **Zero Inline Tests**: `grep -rn "#\[cfg(test)\]" src/` and `grep -rn "#\[test\]" src/` must return 0 matches.
 
-## 3. Verification Commands
+## Verification Commands
+
 ```bash
 cd /home/pmallapp/Devel/Finance/vyapaar-labs/vyapaar-core
 cargo fmt --check
