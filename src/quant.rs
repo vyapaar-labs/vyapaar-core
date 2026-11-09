@@ -148,7 +148,7 @@ impl FromIterator<Decimal> for QuantSeries {
 // ---------------------------------------------------------------------------
 
 /// Arithmetic mean of a non-empty slice.
-fn mean(values: &[Decimal]) -> Decimal {
+pub(crate) fn mean(values: &[Decimal]) -> Decimal {
     values.iter().copied().sum::<Decimal>() / Decimal::from(values.len() as u64)
 }
 

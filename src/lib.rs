@@ -15,10 +15,12 @@
 //! - Safe, closed, strictly-validated AI [`Decision`]
 //! - Scrip-wise [`PriceBand`] limits for Indian market microstructure
 //! - Canonical dynamic position sizing grammar ([`SizingMethod`], [`RiskBudget`], [`PositionSizingRequest`], [`PositionSizingResult`])
+//! - Statistical overfitting & tail-risk validation gates (`analytics::ValidationBlock` — DSR, PBO, walk-forward, holdout, block-bootstrap Monte Carlo, cost stress)
 //! - Tactical DDD first-class aggregate events ([`DomainEvent`])
 //! - Zero-dependency W3C distributed trace context carrier ([`TraceContext`])
 //! - Abstract exchange trading calendar port ([`TradingCalendar`])
 
+pub mod analytics;
 pub mod calendar;
 pub mod decision;
 pub mod error;
@@ -36,6 +38,16 @@ pub mod sizing;
 pub mod types;
 pub mod wire;
 
+pub use analytics::{
+    ValidationBlock,
+    cost_stress::{CostStressConfig, CostStressResult, compute_cost_stress},
+    distribution::{SplitMix64, norm_inv},
+    dsr::{DsrConfig, DsrResult, compute_dsr, expected_max_sharpe},
+    holdout::{HoldoutConfig, HoldoutResult, compute_holdout},
+    monte_carlo::{MonteCarloConfig, MonteCarloResult, run_block_bootstrap},
+    pbo::{PboConfig, PboResult, compute_pbo},
+    walk_forward::{WalkForwardConfig, WalkForwardResult, compute_walk_forward},
+};
 pub use calendar::{SessionWindow, TradingCalendar};
 pub use decision::Decision;
 pub use error::CoreError;
