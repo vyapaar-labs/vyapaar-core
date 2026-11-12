@@ -1,28 +1,40 @@
 # HANDOFF — vyapaar-core
 
-**Status**: Plan 0001 complete and merged to `main`. Batch done.  
-**Date**: 2026-11-09 · Repo: `vyapaar-core` · Branch: `main`
+**Status**: Tier 0 complete; plan 0001 + analytics gates merged. Docs rewritten
+this change.
 
-## Phase / Slice Status (COMPLETE — merged)
+## Phase / Slice Status
+- **Tier 0 (COMPLETE)**: Shared Kernel implemented (migration + plan 0001 +
+  analytics gates). Modules: `types`, `ids`, `error`, `instrument`, `market`,
+  `order`, `decision`, `events`, `wire`, `calendar`, `portfolio`, `screener`,
+  `signal`, `ports`, `sizing`, `quant`, `analytics/`. `schema/` golden +
+  compatibility vectors. `cargo test --profile prod` green.
+- **Docs (COMPLETE, this change)**: `docs/roadmap/` dismantled. Completed
+  milestones folded into `docs/design/` (architecture status + module
+  references); only remaining item (call-site consolidation) stays as gap 0001
+  tracked by plan 0002. Added `code-ids.md` and `code-wire-contracts.md` so
+  every module in `src/` maps to a design doc. Corrected `code-events.md`
+  (`OrderEventKind` = Acked/Filled/Rejected/Cancelled; `TraceContext` does
+  derive serde + JsonSchema) and `code-decision.md` (`validate()` requires
+  `algo_id` on `CancelOrder` too).
 
-- **Plan 0001** (Canonical Quant Transform Primitives): `src/quant.rs` implements `QuantSeries`, `simple_returns`, `log_returns`, `realized_volatility`, `ewma_volatility`, `rolling_mean`, `rolling_stdev`, `sharpe_ratio`, `max_drawdown`, `correlation`, `beta`, `historical_var`, `historical_cvar`, `tracking_error`, and `QuantError`; exported from `lib.rs`; golden-vector tests in `tests/quant_tests.rs` (33 tests) and property-based invariants in `tests/quant_proptest.rs`; commits `9ce4880` + `43a11f0`. Plan doc removed from `docs/plans/`; moved to Implemented Plans in `docs/plans/README.md`.
-
-## Decisions & Discoveries (final)
-
-- Phase 1 implemented; Phase 2 call-site consolidation (delegating `vyapaar-market-indicators` / `vyapaar-agent-analytics` return/vol math to `vyapaar_core::quant`) is tracked as future work, not part of this plan.
-- Zero-floats policy respected: all math uses `rust_decimal::Decimal` with the `maths` feature (pure `Decimal` `ln`/`sqrt`, no `f64` intermediates).
-- Zero-I/O domain purity respected: no network, filesystem, or clock queries.
-- Compiles to `wasm32-unknown-unknown` and native `x86_64`/`aarch64`.
-- `docs/migration-guide.md` decimated: file-by-file migration map moved to
-  `docs/design/code-migration-map.md`; verification commands moved to
-  `docs/roadmap/migration-verification.md`; original `migration-guide.md` removed.
+## Decisions & Discoveries
+- Zero-floats: `rust_decimal` `maths` feature keeps `ln`/`sqrt` pure `Decimal`
+  (no `f64` intermediates, even in `quant.rs`).
+- Zero-I/O purity + zero inline tests in `src/` verified.
+- Wire contracts: `SCHEMA_VERSION = 8`, `API_VERSION = "v1"`; generated schema
+  files are never hand-edited (`make codegen`).
+- Gap 0001 open: `vyapaar-market-indicators` / `vyapaar-agent-analytics` still
+  re-derive return/vol/Sharpe/drawdown locally instead of delegating to
+  `vyapaar_core::quant`.
 
 ## Immediate Next Step
-
-None — batch complete. No active plans remain in `docs/plans/`.
+- Execute plan `0002` (gap 0001): audit downstream local math, delegate to
+  `vyapaar_core::quant`, add parity tests on shared golden vectors.
 
 ## Operating Invariants
-
 - Canonical profile `prod`: `cargo build/check/test --profile prod`.
 - Tests in `tests/` parallel to `src/`; no in-file `#[test]` blocks.
-- `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --profile prod` green.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets --profile prod -- -D warnings`, `cargo test --workspace --profile prod` green.
+- Docs reflect the actual source tree (`docs/design/` per module; `docs/gaps/`
+  per stub; `docs/plans/` per roadmap item).

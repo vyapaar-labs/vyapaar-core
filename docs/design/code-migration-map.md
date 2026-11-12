@@ -1,46 +1,75 @@
-# `vyapaar-core` — Historical Migration Map (honba-core → vyapaar-core)
+# `vyapaar-core` — Implementation Record (honba-core → vyapaar-core)
 
 > **Tier**: Tier 0 (Execute First — Zero Internal Dependencies)
-> **Source**: `/home/pmallapp/Devel/Finance/honba-workspace/honba-core`
-> **Target**: `/home/pmallapp/Devel/Finance/vyapaar-labs/vyapaar-core`
-> **Status**: Migration complete.
+> **Status**: Migration complete; plan 0001 (quant primitives) and the analytics
+> gates merged.
 
-## File-by-File Migration Map
+This document records how the `vyapaar-core` Shared Kernel came to be and the
+TDD/DDD corrections applied during the migration and subsequent plan work. The
+workspace's `honba-core` source tree was the origin of most modules; the kernel
+was re-implemented against the Tier 0 contract with the strict invariants below.
 
-| Source Path (`honba-core/`) | Target Path (`vyapaar-core/`) | Action & DDD Refactoring Required |
-| :--- | :--- | :--- |
-| `Cargo.toml` | `Cargo.toml` | Keep `vyapaar-core` name; copy `[profile.*]` sections. |
-| `Makefile` | `Makefile` | Port and replace `honba-core` with `vyapaar-core`. |
-| `src/lib.rs` | `src/lib.rs` | Re-export all modules (`calendar`, `decision`, `error`, `events`, `ids`, `instrument`, `market`, `order`, `portfolio`, `ports`, `screener`, `signal`, `sizing`, `types`, `wire`). |
-| *(from `honba-kokoro/src/repository.rs`)* | `src/ids.rs` **[NEW]** | Extract `ClientOrderId`, `AlgoId`, `AccountId`, `TransactionId` with `JsonSchema` derives into `vyapaar-core` so all crates share canonical IDs. |
-| `src/types.rs` | `src/types.rs` | Add `Nfo` and `Cds` variants to `Exchange` (`Nse`, `Bse`, `Nfo`, `Mcx`, `Cds`). Add `Price::try_new` and `Quantity::try_new` rejecting negative `Decimal` values. |
-| `src/error.rs` | `src/error.rs` | Port `CoreError` verbatim. |
-| `src/instrument.rs` | `src/instrument.rs` | Port `Instrument`, `InstrumentKind`, `OptionType`, `PositionSide`, `TradeId`, `VenueOrderId`. |
-| `src/market.rs` | `src/market.rs` | Port `Tick`, `DepthLevel`, `Bar`. |
-| `src/order.rs` | `src/order.rs` | Port `OrderSide`, `OrderType`, `TimeInForce`, `OrderStatus`, `OrderRequest`, `ModifyRequest`, `CancelRequest`, `OrderAck`, `FillReport`, `FeeBreakdown`, `OrderEvent`. |
-| `src/decision.rs` | `src/decision.rs` | Port `Decision` enum with `#[serde(deny_unknown_fields)]`. |
-| `src/events.rs` | `src/events.rs` | Port `DomainEvent`, `ExecutionEvent`, `Reason`, `TradingState`. |
-| `src/calendar.rs` | `src/calendar.rs` | Port `SessionWindow`, `TradingCalendar`. |
-| `src/sizing.rs` | `src/sizing.rs` | Port `SizingMethod`, `RiskBudget`, `PositionSizingRequest`, `PositionSizingResult`, `calculate_position_size`. |
-| `src/ports.rs` | `src/ports.rs` | Port all hexagonal port traits (`BarReader`, `TickReader`, `QuoteReader`, `DepthReader`, `MarketDataConnector`, `InstrumentMaster`, `ExecutionGateway`, `PositionSizer`). |
-| `src/portfolio.rs` | `src/portfolio.rs` | Port `PortfolioSnapshot` wire types. |
-| `src/screener.rs` | `src/screener.rs` | Port `ScreenerScanRequest`, `ScreenerRow`, `FilterOp`, `ScreenerFilterGroup`. |
-| `src/signal.rs` | `src/signal.rs` | Port `Signal`, `SignalDirection`, `SignalHorizon`, `Timeframe`. |
-| `src/wire.rs` | `src/wire.rs` | Port W3C `TraceContext`. |
-| `schema/**` | `schema/**` | Copy golden JSON vectors and schema compatibility snapshots; update any `"honba"` strings if present. |
-| `tests/*.rs` | `tests/*.rs` | Port `core_tests.rs`, `golden_test.rs`, `proptest_invariants.rs`, `schema_compatibility_test.rs`. Delete placeholder `tests/unit_tests.rs`. Replace `honba_core` with `vyapaar_core`. |
+## Module Map & Provenance
+
+| Module | Origin / Action |
+|--------|-----------------|
+| `lib.rs` | Re-exports every module; owns `SCHEMA_VERSION` and `API_VERSION`. |
+| `types.rs` | Ported; added `Exchange::{Nfo, Cds}` and `Price::try_new` / `Quantity::try_new` rejecting negatives. |
+| `ids.rs` | **NEW** — `ClientOrderId`, `AlgoId`, `AccountId`, `TransactionId` lifted from `honba-kokoro` so all crates share canonical IDs. |
+| `error.rs` | Ported `CoreError` verbatim. |
+| `instrument.rs` | Ported `Instrument`, `InstrumentKind`, `OptionType`, `PositionSide`, `TradeId`, `VenueOrderId`; added `InstrumentProfile`, `DatasetId`. |
+| `market.rs` | Ported `Tick`, `DepthLevel`, `Bar`. |
+| `order.rs` | Ported order enums and request/ack/fill types; v7 added `FillReport::fee`/`fee_breakdown` (`FeeBreakdown`). |
+| `decision.rs` | Ported `Decision` with `#[serde(deny_unknown_fields)]` + `validate()`. |
+| `events.rs` | Ported `DomainEvent`, `ExecutionEvent`, `Reason`, `TradingState`. |
+| `calendar.rs` | Ported `SessionWindow`, `TradingCalendar`. |
+| `sizing.rs` | Ported `SizingMethod`, `RiskBudget`, `PositionSizingRequest/Result`, `calculate_position_size`. |
+| `ports.rs` | Ported all hexagonal port traits (`BarReader`, `TickReader`, `QuoteReader`, `DepthReader`, `MarketDataConnector`, `InstrumentMaster`, `ExecutionGateway`, `PositionSizer`). |
+| `portfolio.rs` | Ported `PortfolioSnapshot` wire types. |
+| `screener.rs` | Ported `ScreenerScanRequest`, `ScreenerRow`, `FilterOp`, `ScreenerFilterGroup`. |
+| `signal.rs` | Ported `Signal`, `SignalDirection`, `SignalHorizon`, `Timeframe`. |
+| `wire.rs` | Ported W3C `TraceContext`. |
+| `quant.rs` | **NEW** (plan 0001) — canonical quant transform primitives. |
+| `analytics/` | **NEW** — pure-`Decimal` statistical validation gates (`ValidationBlock` + 6 gates). |
+| `schema/**` | Golden JSON vectors + compatibility snapshots (`domain`, `compatibility`, `golden`). |
+| `tests/*.rs` | `core_tests.rs`, `golden_test.rs`, `proptest_invariants.rs`, `schema_compatibility_test.rs`, `quant_tests.rs`, `quant_proptest.rs`, `analytics_gates_tests.rs`. |
+
+## Corrections & Decisions
+
+- **Identifier unification**: aggregate IDs moved into the kernel (split-brain
+  ubiquitous-language fix) so every crate shares one `ClientOrderId`/`AlgoId`/
+  `AccountId`/`TransactionId`.
+- **Exchange vocabulary**: `Nfo` and `Cds` added so downstream crates never
+  redefine `Exchange`.
+- **Wire-boundary validation**: `Price`/`Quantity` deserialize through a
+  validating visitor — negative wire payloads are rejected in both debug and
+  release builds.
+- **TraceContext**: W3C `traceparent` serialization/parsing with zero external
+  dependencies.
+- **Zero-floats**: `rust_decimal` with the `maths` feature; `ln`/`sqrt` stay in
+  pure `Decimal` (no `f64` intermediates).
+- **Schema versioning**: `SCHEMA_VERSION = 8`; changes to any wire type bump it.
 
 ## Strict Invariants Checklist
 
-- [x] **Zero-I/O**: No `tokio`, `std::fs`, `std::net`, or `Utc::now()` in `src/` (except optional helper constructors if explicitly documented; prefer explicit `timestamp: DateTime<Utc>`).
-- [x] **Zero-Floats**: Zero `f32` or `f64` fields in any financial struct.
-- [x] **Zero Inline Tests**: `grep -rn "#\[cfg(test)\]" src/` and `grep -rn "#\[test\]" src/` must return 0 matches.
+- [x] **Zero-I/O**: no `tokio`, `std::fs`, `std::net`, or `Utc::now()` in `src/`.
+- [x] **Zero-floats**: zero `f32`/`f64` fields in any financial struct.
+- [x] **Zero inline tests**: no `#[cfg(test)]` / `#[test]` inside `src/`.
+- [x] **WASM retargetable**: compiles to `wasm32-unknown-unknown`.
 
 ## Verification Commands
 
 ```bash
-cd /home/pmallapp/Devel/Finance/vyapaar-labs/vyapaar-core
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+# Run from the repository root
+make prod      # cargo build --workspace --profile prod
+make test      # cargo test --workspace --profile prod
+make check     # cargo check --workspace --profile prod
+make clippy    # cargo clippy --workspace --all-targets --profile prod -- -D warnings
+make fmt       # cargo fmt
 ```
+
+## Remaining Work
+
+See the [gaps](../gaps/README.md) (0001, tracked by
+[plan 0002](../plans/0002-call-site-consolidation.md)) and
+[plans](../plans/README.md) indexes.

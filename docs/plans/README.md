@@ -6,11 +6,17 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 - When implemented, plan documents are cleaned up from `docs/plans/` and recorded in this index.
 - Numbering is per-repo, sequential, never reused.
 
+The former `docs/roadmap/` directory has been dismantled into this index: the
+completed Tier 0 milestones (value objects, wire contracts, golden vectors,
+quant primitives, analytics gates) live in `docs/design/` (architecture + module
+references + implementation record); the only remaining roadmap item
+(call-site consolidation) is gap 0001, tracked by plan 0002.
+
 ## Active Plans
 
 | # | Title | Target Scope | Status |
 |---|-------|--------------|--------|
-| [0002](0002-call-site-consolidation.md) | Call-Site Consolidation: Delegate Downstream Quant Math to `vyapaar_core::quant` | `vyapaar-core`, `vyapaar-market-indicators`, `vyapaar-agent-analytics` | Open — tracks gap 0001 |
+| [0002](0002-call-site-consolidation.md) | Call-Site Consolidation: Delegate Downstream Quant Math to `vyapaar_core::quant` | `vyapaar-core`, `vyapaar-market-indicators`, `vyapaar-agent-analytics` | Ready — tracks gap 0001 |
 
 ## Implemented Plans
 

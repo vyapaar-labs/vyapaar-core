@@ -1,55 +1,72 @@
-# `vyapaar-core` — Domain Events & Wire Contracts Reference
+# `vyapaar-core` — Domain Events & Trace Context Reference
 
-Documents `vyapaar-core/src/events.rs`, `vyapaar-core/src/wire.rs`, and related
-cross-subsystem contracts.
+Documents `vyapaar-core/src/events.rs` and `vyapaar-core/src/wire.rs`: the
+authoritative cross-subsystem domain events and the W3C trace context carrier.
 
 ## `DomainEvent` (`events.rs`)
 
-Cross-subsystem domain events that propagate state changes between bounded
-contexts. Immutable, carry a `TraceContext` for distributed observability.
+Authoritative platform state-transition events designed for distributed audit
+logging, event-sourced ledger reconstruction, and asynchronous
+cross-bounded-context bus delivery. Immutable; tagged
+(`#[serde(tag = "type", rename_all = "snake_case")]`); every variant carries an
+explicit `timestamp: DateTime<Utc>` and an optional `trace_context`.
 
-### `Reason` / `ReasonGroup` / `ReasonPolarity`
+| Variant | Purpose |
+|---------|---------|
+| `OrderPlaced` | Client order dispatched: `order_id`, `client_order_id: Uuid`, `instrument`, `algo_id`, `side`, `quantity`, optional `price`. |
+| `OrderModified` | In-flight amendment: original vs revised `quantity` and `price`. |
+| `OrderCancelled` | Withdrawal: optional `algo_id`, `source` (e.g. `user`, `rms`, `market_close`), `reason`. |
+| `OrderFilled` | Fill execution: `fill: Box<FillReport>`. |
+| `RiskBreached` | Pre-trade gate denial: `rule_id`, `attempted_value`, `threshold_limit`, `message`. |
+| `PositionLiquidated` | Emergency square-off / MIS auto-liquidation. |
+| `MarginCallIssued` | Intraday margin shortfall: `required_maintenance_equity`, `current_equity`, `shortfall` (all `Money`). |
+| `SizingCalculated` | Sizing determination: `request: Box<PositionSizingRequest>`, `result: PositionSizingResult`. |
 
-| Type | Values | Purpose |
-|------|--------|---------|
-| `ReasonGroup` | `Risk`, `Signal`, `Execution`, `Compliance` | Originating subsystem |
-| `ReasonPolarity` | `Positive`, `Negative`, `Neutral` | Favors or disfavors the action |
-| `Reason` | `group`, `polarity`, `code`, `message` | Structured audit reason (e.g. code `"otr_breached"`) |
+Accessors: `DomainEvent::timestamp()` and `DomainEvent::trace_context()`.
 
-### `ExecutionEvent`
+## `ExecutionEvent` (`events.rs`)
 
-Wraps `OrderEvent` (post-submission order lifecycle) with pre-trade risk-gate
-outcome. A risk refusal never produces an `OrderEvent` — it is refused before
-reaching that scope.
-
-## `OrderEvent` / `OrderEventKind` (`order.rs`)
+Wraps `OrderEvent` (post-submission order lifecycle) with the pre-trade risk-gate
+outcome:
 
 | Variant | Meaning |
 |---------|---------|
-| `OrderEventKind::Placed` | Order accepted by broker |
-| `OrderEventKind::Modified` | Order amended |
-| `OrderEventKind::Cancelled` | Order cancelled |
-| `OrderEventKind::Filled` | Order (partially) filled |
-| `OrderEventKind::Rejected` | Order rejected |
-| `OrderEventKind::Expired` | Order expired |
+| `Submitted { order_id, instrument }` | Order request submitted for risk evaluation. |
+| `RiskRefused { order_id, reasons: Vec<Reason> }` | Risk gate refused before the order reached the exchange. |
+| `Order(OrderEvent)` | Post-submission order lifecycle event. |
 
-## `FillReport` (`order.rs`)
+A risk refusal never produces an `OrderEvent` — it is refused before reaching
+that scope.
 
-Execution confirmation with explicit timestamp, executed price, quantity, exchange
-order ID, and transaction costs (`fee` / `fee_breakdown` as `FeeBreakdown` — v7
-schema addition).
+## `Reason` / `ReasonGroup` / `ReasonPolarity` / `TradingState` (`events.rs`)
+
+- `ReasonGroup` — `Risk`, `Signal`, `Execution`, `Compliance` (originating subsystem).
+- `ReasonPolarity` — `Positive`, `Negative`, `Neutral`.
+- `Reason` — `group`, `polarity`, `code` (machine-stable, e.g. `"otr_breached"`), `message`.
+- `TradingState` — `Active`, `Halted { reason }`, `Paused { resume_at }`.
 
 ## `TraceContext` (`wire.rs`)
 
-W3C distributed trace context carrier — zero-dependency, no serde/schemars
-derives by design (it is an observability carrier, not a wire contract).
+Zero-dependency W3C Trace Context Level 1 carrier (`traceparent` header):
+`trace_id: [u8; 16]`, `span_id: [u8; 8]`, `trace_flags: u8`. Derives
+`Serialize`/`Deserialize` and `JsonSchema` (it rides on wire payloads such as
+`DomainEvent`), but adds **no external dependencies**.
+
+- `TraceContext::new(...)` / `new_root(...)` (sampled) / `child_span(...)`.
+- `is_sampled()` — bit 0 of `trace_flags` (`SAMPLED = 0x01`).
+- `to_traceparent()` — formats `00-{trace_id_hex}-{span_id_hex}-{trace_flags_hex}`.
+- `from_traceparent(header)` — strict W3C parser (version `00`, non-zero
+  trace/span ids); invalid headers yield `CoreError::Validation`.
 
 ## Schema Versioning
 
 `SCHEMA_VERSION: u32 = 8` (in `lib.rs`):
-- v6: instrument master data, portfolio snapshots, signals, screener, domain events, `ports`
-- v7: `FillReport::fee`/`fee_breakdown` (`FeeBreakdown`)
-- v8: dynamic position sizing contracts, enriched `Signal`, `DomainEvent` aggregate envelope, `TraceContext`
+
+- v6: instrument master data, portfolio snapshots, signals, screener, domain
+  events, `ports`.
+- v7: `FillReport::fee` / `fee_breakdown` (`FeeBreakdown`).
+- v8: dynamic position sizing contracts, enriched `Signal`, `DomainEvent`
+  aggregate envelope, `TraceContext`.
 
 `API_VERSION: &str = "v1"` — REST endpoint surface version.
 
@@ -60,5 +77,10 @@ Timestamps are explicit `DateTime<Utc>` parameters, never `SystemTime::now()`.
 
 ## Related
 
-- `vyapaar-agent-core/src/decision.rs` — `DecisionParser` validates `vyapaar_core::Decision` before risk gate.
-- `vyapaar-ledger` — consumes `FillReport`/`DomainEvent` for double-entry FIFO ledger.
+- `vyapaar-core/src/order.rs` — `OrderEvent`/`OrderEventKind` and `FillReport`
+  (see [code-wire-contracts](code-wire-contracts.md)).
+- `vyapaar-core/src/sizing.rs` — `PositionSizingRequest`/`PositionSizingResult`.
+- `vyapaar-agent-core/src/decision.rs` — `DecisionParser` validates
+  `vyapaar_core::Decision` before the risk gate.
+- `vyapaar-ledger` — consumes `FillReport`/`DomainEvent` for the double-entry
+  FIFO ledger.
